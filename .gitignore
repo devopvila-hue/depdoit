@@ -1,0 +1,29 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (este proyecto NO necesita node, pero por si alguien lo prueba)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build / salida
+dist/
+build/
+*.min.js
+*.min.css
+
+# Entorno
+.env
+.env.*
+
+# Datos locales de la app (nunca deben subirse)
+*.local.json

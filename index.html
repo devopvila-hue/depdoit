@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Minimal Board</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%234f46e5'/><rect x='22' y='26' width='16' height='48' rx='4' fill='white'/><rect x='46' y='26' width='16' height='30' rx='4' fill='white' opacity='.7'/><rect x='70' y='26' width='8' height='48' rx='4' fill='white' opacity='.4'/></svg>">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Barra superior ─────────────────────────────── -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+    </div>
+
+    <div class="board-picker">
+      <button class="board-picker-btn" id="boardPickerBtn" aria-haspopup="menu" aria-expanded="false">
+        <span class="name" id="boardName">—</span>
+        <span class="caret">▾</span>
+      </button>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input class="search" id="search" type="search" placeholder="…"
+             autocomplete="off" spellcheck="false" data-i18n-ph="search.ph" data-i18n-aria="search.aria">
+      <button class="search-clear" id="searchClear" hidden data-i18n-aria="search.clear">✕</button>
+    </div>
+
+    <button class="icon-btn" id="newCardBtn" title="N" data-i18n-aria="btn.newCard" data-i18n-title="btn.newCard.title">＋</button>
+    <button class="icon-btn" id="paletteBtn" title="⌘K" data-i18n-aria="btn.commands" data-i18n-title="btn.commands.title">⌘</button>
+    <button class="icon-btn" id="themeBtn" title="◐" data-i18n-aria="btn.theme" data-i18n-title="btn.theme.title">◐</button>
+    <button class="icon-btn" id="helpBtn" title="?" data-i18n-aria="btn.help" data-i18n-title="btn.help.title">?</button>
+
+    <select class="lang-select" id="langSelect" data-i18n-aria="btn.lang"></select>
+  </header>
+
+  <!-- ── Filtros ────────────────────────────────────── -->
+  <div class="filterbar" id="filterbar">
+    <div class="filter-group" id="labelFilters"></div>
+    <div class="filter-group" id="quickFilters"></div>
+    <span class="filter-count" id="filterCount"></span>
+  </div>
+
+  <!-- ── Tablero ────────────────────────────────────── -->
+  <main class="board" id="board" role="list" aria-label="Board"></main>
+
+</div>
+
+<!-- ── Panel de detalle (cajón, no modal) ─────────── -->
+<aside class="panel" id="panel" aria-hidden="true">
+  <div class="panel-head">
+    <span class="panel-breadcrumb" id="panelBreadcrumb"></span>
+    <button class="icon-btn" id="panelPrev" data-i18n-aria="panel.prev" data-i18n-title="panel.prev">↑</button>
+    <button class="icon-btn" id="panelNext" data-i18n-aria="panel.next" data-i18n-title="panel.next">↓</button>
+    <button class="icon-btn" id="panelClose" data-i18n-aria="panel.close" data-i18n-title="panel.close">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+  <div class="panel-foot" id="panelFoot"></div>
+</aside>
+
+<!-- ── Paleta de comandos ──────────────────────────── -->
+<div class="overlay" id="paletteOverlay" hidden>
+  <div class="palette" role="dialog" aria-modal="true">
+    <input class="palette-input" id="paletteInput" autocomplete="off" spellcheck="false" data-i18n-ph="cmd.ph">
+    <div class="palette-list" id="paletteList"></div>
+  </div>
+</div>
+
+<!-- ── Ayuda (contenido generado desde el diccionario) ── -->
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="help" id="helpContent" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- ── Calendario emergente (inicio / fin) ────────── -->
+<div class="cal-pop" id="calPop" hidden></div>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
