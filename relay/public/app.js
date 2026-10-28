@@ -3,6 +3,19 @@
 
 const LANG_STORAGE_KEY = 'relay.lang';
 
+/**
+ * Ruta en la que vive Relay dentro de este origen.
+ *
+ * Vacía cuando se sirve en la raíz (`/`), y algo como `/relay` cuando se
+ * monta en un subdirectorio: entonces la API cuelga de `/relay/api` y los
+ * ficheros estáticos de `/relay/...`, sin pisar lo que ya haya en la raíz.
+ * Se deduce de la URL del propio documento, así que no hay que configurarlo.
+ */
+const API_BASE = (() => {
+  const path = new URL('.', document.baseURI).pathname;
+  return path === '/' ? '' : path.replace(/\/+$/, '');
+})();
+
 const state = {
   lang: 'es',
   projects: [],
@@ -61,7 +74,7 @@ async function api(path, { method = 'GET', body } = {}) {
     init.headers['content-type'] = 'application/json';
     init.body = JSON.stringify(body);
   }
-  const res = await fetch(path, init);
+  const res = await fetch(API_BASE + path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && !path.includes('/api/meta')) askToken();
@@ -159,6 +172,10 @@ async function getAuthToken() {
 /**
  * Carga la configuración de Supabase. Si Relay vive en el mismo origen que la
  * app de tareas, reutiliza su `/config.js` en lugar de duplicar claves.
+ *
+ * Se prueba primero el config de la propia ruta de Relay y después el de la
+ * raíz del origen (que es el de la app de tareas), para que funcione tanto
+ * servido en la raíz como montado en un subdirectorio.
  */
 async function loadConfig() {
   if (window.RELAY_CONFIG) return window.RELAY_CONFIG;
@@ -169,13 +186,17 @@ async function loadConfig() {
     };
     return window.RELAY_CONFIG;
   }
-  await new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = '/config.js';
-    script.onload = resolve;
-    script.onerror = resolve;
-    document.head.appendChild(script);
-  });
+  const sources = [...new Set([`${API_BASE}/config.js`, '/config.js'])];
+  for (const source of sources) {
+    await new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = source;
+      script.onload = resolve;
+      script.onerror = resolve;
+      document.head.appendChild(script);
+    });
+    if (window.DEPDOIT_CONFIG) break;
+  }
   window.RELAY_CONFIG = {
     supabaseUrl: window.DEPDOIT_CONFIG?.supabaseUrl || '',
     supabaseAnonKey: window.DEPDOIT_CONFIG?.supabaseAnonKey || '',

@@ -90,15 +90,46 @@ function readCookie(req, name) {
 }
 
 /**
- * Crea el servidor HTTP de Relay.
- * @param {{store: object, translator?: object, token?: string, supabase?: object, publicDir?: string}} options
+ * Normaliza una ruta base de montaje: '' o '/relay'. Nunca con barra final.
  */
-export function createServer({ store, translator, token, supabase, publicDir = PUBLIC_DIR }) {
+export function normalizeBasePath(value) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === '/') return '';
+  const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
+  return withSlash.replace(/\/+$/, '');
+}
+
+/**
+ * Crea el servidor HTTP de Relay.
+ *
+ * `basePath` permite montarlo bajo un subdirectorio (por ejemplo `/relay`) sin
+ * tocar la app que ya vive en la raíz del mismo origen: las rutas de la API y
+ * los ficheros estáticos quedan colgando de esa ruta.
+ *
+ * @param {{store: object, translator?: object, token?: string, supabase?: object, publicDir?: string, basePath?: string}} options
+ */
+export function createServer({ store, translator, token, supabase, publicDir = PUBLIC_DIR, basePath = '' }) {
   const api = createApi(store, { translator });
+  const base = normalizeBasePath(basePath);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
-    const { pathname, searchParams } = url;
+    const { searchParams } = url;
+    let { pathname } = url;
+
+    if (base) {
+      if (pathname === base) {
+        // Como cualquier directorio estático: la barra final hace que las
+        // rutas relativas del HTML (estilos, scripts) resuelvan bien.
+        res.writeHead(301, { location: `${base}/` }).end();
+        return;
+      } else if (pathname.startsWith(`${base}/`)) {
+        pathname = pathname.slice(base.length);
+      } else {
+        sendJson(res, 404, { error: 'Ruta no encontrada' });
+        return;
+      }
+    }
 
     if (!pathname.startsWith('/api/')) {
       await serveStatic(res, pathname);

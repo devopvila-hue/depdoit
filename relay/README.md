@@ -105,6 +105,29 @@ npm start
 La clave anónima es pública por diseño (la que ya viaja al navegador de la app de
 tareas); lo que protege los datos son las políticas RLS.
 
+## Montarlo en un subdirectorio del mismo origen
+
+Si la app de tareas vive en `tasks.departify.app/` y Relay se sirve en
+`tasks.departify.app/relay/`, ambas comparten origen: la misma sesión, el mismo
+`localStorage` y las mismas invitaciones.
+
+```bash
+RELAY_BASE_PATH='/relay' npm start
+```
+
+Con esa variable:
+
+- La API cuelga de `/relay/api/...` y los estáticos de `/relay/...`; la raíz del
+  origen no la toca Relay.
+- `/relay` redirige a `/relay/`, como cualquier directorio estático.
+- El front deduce solo en qué ruta está (de la URL del documento), así que los
+  `<script>` y `<link>` son relativos y no hay que configurarlos.
+- El `config.js` se busca primero en la ruta de Relay y después en la raíz del
+  origen: así hereda el de la app de tareas sin duplicar claves.
+
+En el proxy inverso basta con mandar `/relay/*` al proceso de Node y dejar que
+todo lo demás siga a la app de tareas.
+
 ## API REST
 
 Todo en `127.0.0.1:4310`, sin autenticación (es una herramienta local).
@@ -133,9 +156,11 @@ server.js            punto de entrada: abre la base y levanta el servidor
 src/db.js            esquema SQLite y apertura de la base
 src/store.js         datos y reglas de negocio (sin HTTP)
 src/api.js           tabla de rutas REST
-src/server.js        servidor HTTP y ficheros estáticos
+src/server.js        servidor HTTP, ficheros estáticos y ruta de montaje
+src/supabase-auth.js validación de la sesión de Supabase compartida
+src/translate.js     traducción automática (proveedor compatible con OpenAI)
 public/              interfaz (HTML, CSS y JS sin compilar ni CDN)
-test/api.test.js     tests de extremo a extremo sobre HTTP
+test/                tests de API, i18n, sesión compartida y ruta de montaje
 scripts/seed.js      datos de ejemplo
 ```
 
@@ -161,3 +186,4 @@ funciona.
 | `RELAY_LLM_KEY_FILE` | — | Fichero local con la clave, alternativa a `LLM_API_KEY` |
 | `SUPABASE_URL` | — | Proyecto Supabase para validar la sesión compartida |
 | `SUPABASE_ANON_KEY` | — | Clave pública de ese proyecto |
+| `RELAY_BASE_PATH` | — | Ruta en la que se monta (por ejemplo `/relay`) |

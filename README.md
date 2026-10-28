@@ -212,11 +212,26 @@ Los datos de Relay viven en su propio SQLite (`relay/data/relay.db`, no se sube)
 que también vivan en Supabase habría que crear sus tablas y sus políticas RLS: ese
 paso de base de datos todavía está pendiente.
 
+### Montarlo bajo `tasks.departify.app/relay/`
+
+Relay puede colgarse en un subdirectorio del **mismo origen** que la app de tareas,
+sin tocar DNS ni abrir un segundo login:
+
+```bash
+cd relay
+RELAY_BASE_PATH='/relay' npm start
+```
+
+La API queda en `/relay/api/...`, los estáticos en `/relay/...` y la raíz del origen
+sigue siendo de la app de tareas. El front deduce solo en qué ruta está, así que no
+hay nada que configurar en el HTML. En el proxy inverso se manda `/relay/*` al proceso
+de Node y el resto sigue a la app de tareas.
+
 ### Cómo se arranca
 
 ```bash
 cd relay
-npm test     # 42 tests, sin dependencias externas
+npm test     # 50 tests, sin dependencias externas
 npm start    # http://127.0.0.1:4310
 ```
 

@@ -18,14 +18,16 @@ const db = openDb(DB_FILE);
 const store = createStore(db);
 const translator = createTranslator(process.env);
 const token = process.env.RELAY_TOKEN?.trim() || null;
+const basePath = process.env.RELAY_BASE_PATH?.trim() || '';
 const supabase = createSupabaseVerifier({
   url: process.env.SUPABASE_URL,
   anonKey: process.env.SUPABASE_ANON_KEY,
 });
-const server = createServer({ store, translator, token, supabase });
+const server = createServer({ store, translator, token, supabase, basePath });
 
 server.listen(PORT, HOST, () => {
   console.log(`Relay escuchando en http://${HOST}:${PORT}`);
+  if (basePath) console.log(`Montado en: http://${HOST}:${PORT}${basePath}/`);
   console.log(`Base de datos local: ${DB_FILE}`);
   console.log(
     translator.available
