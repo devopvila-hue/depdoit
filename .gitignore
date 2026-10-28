@@ -27,3 +27,5 @@ build/
 
 # Datos locales de la app (nunca deben subirse)
 *.local.json
+# Datos locales de Relay (base SQLite, nunca se sube)
+relay/data/

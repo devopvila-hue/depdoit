@@ -177,6 +177,53 @@ fuera.
 
 ---
 
+## Relay — el gestor de incidencias, en la misma carpeta
+
+Este repo también contiene **Relay**, un gestor de proyectos, incidencias y sprints
+tipo Jira. Vive en `relay/` y no toca nada del Minimal Board de la raíz.
+
+### Qué es
+
+- Node puro: `node:http`, `node:sqlite`, `node:test`. Cero dependencias, cero build.
+- API REST local: proyectos, incidencias, sprints, tablero, usuarios y traducciones.
+- Tablero kanban con arrastrar y soltar, vista de lista con filtros, vista de sprint,
+  **vista Gantt** con escala automática (día, semana o mes) y backlog.
+- Interfaz en **español, inglés, rumano y húngaro**.
+- Traducción automática del texto de cada incidencia con MiniMax, o a mano.
+
+### El mismo login que la app de tareas
+
+Si Relay se sirve en el mismo origen que la app de tareas (`tasks.departify.app`),
+**no hay un segundo login**: lee la sesión de Supabase que ya existe en
+`localStorage['depdoit:session']` —mismo formato, mismo refresco— y el servidor la
+valida contra ese mismo proyecto Supabase. Se conservan el acceso y las invitaciones.
+
+```bash
+cd relay
+SUPABASE_URL='https://<proyecto>.supabase.co' \
+SUPABASE_ANON_KEY='<clave pública>' \
+npm start
+```
+
+Sin esas variables, Relay arranca en `127.0.0.1:4310` para uso local, o protegido con
+`RELAY_TOKEN=...` si se publica.
+
+Los datos de Relay viven en su propio SQLite (`relay/data/relay.db`, no se sube). Para
+que también vivan en Supabase habría que crear sus tablas y sus políticas RLS: ese
+paso de base de datos todavía está pendiente.
+
+### Cómo se arranca
+
+```bash
+cd relay
+npm test     # 42 tests, sin dependencias externas
+npm start    # http://127.0.0.1:4310
+```
+
+`npm run seed` deja un proyecto de ejemplo con incidencias, sprint y equipo.
+
+---
+
 ## Lo que NO tiene (a propósito)
 
 Sin servidor ni sincronización multiusuario · sin adjuntos ni subida de ficheros ·

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relay · proyectos, incidencias y sprints</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0f16'/%3E%3Cpath d='M8 22V10h4l4 7 4-7h4v12' stroke='%23b4f13c' stroke-width='2.4' fill='none' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">R</span>
+          <span class="brand-name">Relay</span>
+        </div>
+
+        <div class="project-switch">
+          <select id="project-select" aria-label="Proyecto"></select>
+        </div>
+
+        <div class="search">
+          <input id="search" type="search" placeholder="Buscar incidencias…" autocomplete="off" />
+        </div>
+
+        <div class="lang-switch">
+          <select id="lang-select" aria-label="Idioma"></select>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="btn-new-issue" class="btn btn-primary">+ Incidencia</button>
+          <button id="btn-new-project" class="btn btn-ghost">+ Proyecto</button>
+        </div>
+      </header>
+
+      <div id="notice" class="notice" hidden></div>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <section class="side-block">
+            <h2 class="side-title" id="views-title">Vistas</h2>
+            <nav class="views" id="views">
+              <button class="view-btn is-active" data-view="board">Tablero</button>
+              <button class="view-btn" data-view="list">Lista</button>
+              <button class="view-btn" data-view="sprint">Sprint</button>
+              <button class="view-btn" data-view="gantt">Gantt</button>
+              <button class="view-btn" data-view="backlog">Backlog</button>
+            </nav>
+          </section>
+
+          <section class="side-block">
+            <h2 class="side-title" id="sprints-title">Sprints</h2>
+            <div id="sprint-list" class="sprint-list"></div>
+            <button id="btn-new-sprint" class="btn btn-ghost btn-block">+ Nuevo sprint</button>
+          </section>
+
+          <section class="side-block">
+            <h2 class="side-title" id="team-title">Equipo</h2>
+            <div id="user-list" class="user-list"></div>
+            <button id="btn-new-user" class="btn btn-ghost btn-block">+ Miembro</button>
+          </section>
+        </aside>
+
+        <main class="main">
+          <div id="flash" class="flash" hidden></div>
+          <div id="view-root" class="view-root">
+            <p class="empty">Cargando…</p>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+    <aside id="drawer" class="drawer" hidden aria-label="Detalle de incidencia">
+      <div id="drawer-root"></div>
+    </aside>
+
+    <div id="modal-backdrop" class="modal-backdrop" hidden>
+      <div id="modal" class="modal" role="dialog" aria-modal="true"></div>
+    </div>
+
+    <script src="/i18n.js"></script>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
