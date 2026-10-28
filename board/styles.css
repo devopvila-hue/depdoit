@@ -124,10 +124,15 @@ body {
 .brand-mark {
   width: 22px; height: 22px;
   border-radius: 6px;
-  background: var(--accent);
-  display: grid; place-items: center;
-  color: #fff; font-size: 13px; font-weight: 700;
+  object-fit: contain;
   flex-shrink: 0;
+}
+.brand-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 .board-picker { position: relative; }
@@ -1065,3 +1070,321 @@ body {
     transition-duration: .01ms !important;
   }
 }
+/* ── Asignados (campo del panel) ───────────────────── */
+
+.assignee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.assignee-chip:hover { border-color: var(--border-2); }
+.assignee-chip.is-on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--text);
+}
+
+.assignee-avatar {
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.assignee-chip.is-on .assignee-avatar {
+  background: var(--accent);
+  color: #fff;
+}
+
+.assignee-mail { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Pantalla de acceso ────────────────────────────── */
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--surface);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.auth-logo { border-radius: 8px; margin-bottom: 6px; }
+.auth-title { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+.auth-sub { font-size: 13px; color: var(--muted); margin: 0 0 14px; }
+.auth-card .input { margin-bottom: 4px; }
+.auth-submit { margin-top: 12px; width: 100%; justify-content: center; }
+.auth-error { color: #dc2626; font-size: 12px; margin: 4px 0 0; }
+.auth-alt { font-size: 13px; color: var(--muted); text-align: center; margin: 12px 0 0; }
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-local {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  align-self: center;
+}
+
+/* ── Admin: equipo ─────────────────────────────────── */
+
+.admin-app .topbar { gap: 12px; }
+.admin-heading {
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: -.01em;
+  margin-right: auto;
+}
+.admin-back { font-size: 13px; text-decoration: none; color: var(--text-2); }
+
+.admin-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-loading { color: var(--muted); font-size: 14px; padding: 40px 0; text-align: center; }
+
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.admin-gate { text-align: center; padding: 40px 24px; }
+.admin-gate h1 { font-size: 20px; margin: 0 0 8px; }
+.admin-gate p { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+.admin-notice { background: var(--surface-2); }
+.admin-notice p { margin: 0; font-size: 13px; color: var(--text-2); }
+
+.admin-h2 {
+  font-size: 14px;
+  font-weight: 650;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-3);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.admin-help { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+
+.admin-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-form .input { flex: 1 1 200px; min-width: 0; }
+.admin-form .select { flex: 0 0 150px; }
+
+.admin-invite-result { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.admin-link-row { display: flex; gap: 8px; }
+.admin-link-row .input { flex: 1; font-family: ui-monospace, monospace; font-size: 12px; }
+.admin-hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+
+.admin-people { display: flex; flex-direction: column; margin-top: 12px; }
+
+.admin-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.admin-person:last-child { border-bottom: none; }
+.admin-avatar { background: var(--surface-3); color: var(--text-2); width: 30px; height: 30px; font-size: 12px; }
+.admin-avatar-pending { border: 1px dashed var(--border-2); background: transparent; color: var(--muted); }
+
+.admin-person-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.admin-person-mail {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-you { color: var(--muted); font-weight: 400; }
+.admin-person-role { font-size: 11px; color: var(--muted); }
+.admin-person-role.is-owner { color: var(--accent); font-weight: 600; }
+
+.admin-person-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-sm { font-size: 12px; padding: 4px 10px; }
+
+@media (max-width: 520px) {
+  .admin-form .select { flex: 1 1 100%; }
+  .admin-person-actions { flex-direction: column; }
+}
+
+/* ── Login con Google ──────────────────────────────── */
+
+.auth-sep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.auth-sep::before, .auth-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-google {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  color: var(--text);
+  font-weight: 500;
+}
+.auth-google:hover { background: var(--surface-2); }
+
+/* Durante el login el tablero local no se muestra detrás. */
+body.auth-locked .app { visibility: hidden; }
+
+/* ── Evidencia de QA (panel) ───────────────────────── */
+
+.seg-row { display: flex; gap: 4px; margin-top: 6px; }
+.seg-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.seg-btn:hover { border-color: var(--border-2); }
+.seg-btn.is-on {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.field-label-sub { display: block; margin-top: 14px; }
+
+.sev-row { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.sev-btn {
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.sev-btn:hover { border-color: var(--border-2); }
+.sev-btn.is-on { border-color: currentColor; }
+.sev-btn.sev-low.is-on     { color: #16a34a; background: #f0fdf4; }
+.sev-btn.sev-medium.is-on  { color: #ca8a04; background: #fefce8; }
+.sev-btn.sev-high.is-on    { color: #ea580c; background: #fff7ed; }
+.sev-btn.sev-blocker.is-on { color: #dc2626; background: #fef2f2; }
+
+.evidence-input { min-height: 54px; margin-top: 6px; font-size: 12px; }
+
+.evidence-verify { margin-top: 12px; }
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+/* Marca de tipo en la tarjeta del tablero */
+.card-kind {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-right: 5px;
+}
+.card-kind.kind-bug { background: #fef2f2; color: #dc2626; }
+.card-kind.kind-improvement { background: #eff6ff; color: #2563eb; }
+.card-sev {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.card-sev.sev-blocker { background: #dc2626; color: #fff; }
+.card-sev.sev-high { background: #fff7ed; color: #ea580c; }
+
+.card-kind-row { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+
+/* Selector de empresa activa (admin y tablero) */
+.org-switch {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  max-width: 220px;
+  cursor: pointer;
+  margin-right: auto;
+}
+.org-switch:hover { border-color: var(--border-2); }

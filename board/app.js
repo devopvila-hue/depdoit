@@ -11,8 +11,19 @@ const { t, labelName, locale, getLang, setLang } = window.I18N;
 const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const uid = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const uid = () => {
+  // UUID v4. Los ids se generan en el cliente para que el id local sea
+  // exactamente el id del servidor: sin tabla de traducción que desincronizar.
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  const b = new Uint8Array(16);
+  (window.crypto || {}).getRandomValues
+    ? window.crypto.getRandomValues(b)
+    : b.forEach((_, i) => { b[i] = Math.floor(Math.random() * 256); });
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+};
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -298,6 +309,12 @@ function mutate(fn) {
   redoStack.length = 0;
   save();
   render();
+  // Un solo punto de enganche con el backend: se compara el antes y el
+  // después. Así ningún camino nuevo puede olvidarse de persistir.
+  if (window.DepdoitSync) {
+    try { window.DepdoitSync.onDiff(JSON.parse(before), JSON.parse(snapshot())); }
+    catch (e) { console.warn('[sync] diff falló:', e.message); }
+  }
   return true;
 }
 
@@ -508,6 +525,41 @@ function renderTopbar() {
   $('#searchClear').hidden = !view.query;
   const ls = $('#langSelect');
   if (ls && ls.value !== getLang()) ls.value = getLang();
+
+  // Empresa activa: si el usuario pertenece a varias, debe poder verlo y
+  // cambiarlo. Un founder con "Mi empresa" y "Founders" necesita saber en
+  // cuál está trabajando.
+  const sync = window.DepdoitSync;
+  const ctx = sync && sync.context ? sync.context() : null;
+  const orgs = (ctx && ctx.organizations) || [];
+  let sel = $('#orgSwitchBoard');
+
+  if (orgs.length > 1) {
+    if (!sel) {
+      sel = document.createElement('select');
+      sel.id = 'orgSwitchBoard';
+      sel.className = 'org-switch';
+      sel.title = 'Empresa activa';
+      sel.setAttribute('aria-label', 'Empresa activa');
+      const topbar = $('.topbar');
+      const brand = $('.brand', topbar);
+      if (brand && brand.nextSibling) topbar.insertBefore(sel, brand.nextSibling);
+    }
+    sel.innerHTML = orgs.map((o) =>
+      `<option value="${o.organizationId}" ${o.organizationId === ctx.organizationId ? 'selected' : ''}>${esc(o.name)}</option>`
+    ).join('');
+    sel.hidden = false;
+    if (!sel.dataset.bound) {
+      sel.addEventListener('change', () => {
+        if (window.DepdoitAPI && window.DepdoitAPI.setOrganization) {
+          window.DepdoitAPI.setOrganization(sel.value);
+        }
+      });
+      sel.dataset.bound = '1';
+    }
+  } else if (sel) {
+    sel.hidden = true;
+  }
 }
 
 /* ── Filtros ─────────────────────────────────────── */
@@ -621,6 +673,11 @@ function renderCard(c) {
         ? `<input class="inline-input" id="titleEdit" value="${esc(c.name)}" maxlength="200">`
         : `<div class="card-title">${esc(c.name || t('card.untitled'))}</div>`}
       ${c.desc ? `<div class="card-desc">${esc(c.desc)}</div>` : ''}
+      ${(c.kind === 'bug' || c.kind === 'improvement' || c.severity) ? `<div class="card-kind-row">
+        ${c.kind === 'bug' || c.kind === 'improvement'
+          ? `<span class="card-kind kind-${c.kind}">${esc(t('panel.kind.' + c.kind))}</span>` : ''}
+        ${c.severity ? `<span class="card-sev sev-${c.severity}">${esc(t('panel.severity.' + c.severity))}</span>` : ''}
+      </div>` : ''}
       <div class="card-meta">
         ${rng ? `<span class="badge badge-due ${rng.cls}">📅 ${esc(rng.text)}</span>` : ''}
         ${st.total ? `<span class="badge badge-check ${st.pct === 100 ? 'is-complete' : ''}">☑ ${st.done}/${st.total}</span>` : ''}
@@ -673,6 +730,8 @@ function renderPanel() {
       </div>
     </div>
 
+    ${assigneeField(c)}
+
     ${dateField(c, 'start')}
     ${dateField(c, 'end')}
 
@@ -683,6 +742,8 @@ function renderPanel() {
             data-label-toggle="${l.id}" style="background:${l.bg};color:${l.fg}">${esc(labelName(l.id))}</button>`).join('')}
       </div>
     </div>
+
+    ${evidenceField(c)}
 
     <div class="field">
       <span class="field-label">${esc(t('panel.checklists'))}${st.total ? ` · ${st.done}/${st.total}` : ''}</span>
@@ -697,6 +758,64 @@ function renderPanel() {
     <button class="btn btn-danger" id="delCard">${esc(t('panel.delete'))}</button>`;
 
   restoreFocus();
+}
+
+/**
+ * Bloque de evidencia de QA. Solo se pinta cuando la tarjeta es un fallo o
+ * una mejora: en una tarea normal estos campos son ruido.
+ */
+function evidenceField(c) {
+  const kind = c.kind || 'task';
+  const isReport = kind === 'bug' || kind === 'improvement';
+
+  const kindBtn = (k) => `<button class="seg-btn ${kind === k ? 'is-on' : ''}" data-kind="${k}">${esc(t('panel.kind.' + k))}</button>`;
+  const sevBtn = (sv) => `<button class="sev-btn sev-${sv} ${c.severity === sv ? 'is-on' : ''}" data-severity="${sv}">${esc(t('panel.severity.' + sv))}</button>`;
+
+  return `<div class="field">
+      <span class="field-label">${esc(t('panel.kind'))}</span>
+      <div class="seg-row">${['task', 'bug', 'improvement'].map(kindBtn).join('')}</div>
+      ${isReport ? `
+        <span class="field-label field-label-sub">${esc(t('panel.severity'))}</span>
+        <div class="sev-row">${['low', 'medium', 'high', 'blocker'].map(sevBtn).join('')}</div>
+
+        <label class="field-label field-label-sub" for="expectedInput">${esc(t('panel.expected'))}</label>
+        <textarea class="desc-editor evidence-input" id="expectedInput"
+          placeholder="${esc(t('panel.expected.ph'))}">${esc(c.expected || '')}</textarea>
+
+        <label class="field-label field-label-sub" for="actualInput">${esc(t('panel.actual'))}</label>
+        <textarea class="desc-editor evidence-input" id="actualInput"
+          placeholder="${esc(t('panel.actual.ph'))}">${esc(c.actual || '')}</textarea>
+
+        <div class="evidence-verify">
+          ${c.verifiedAt
+            ? `<span class="verified-badge">✓ ${esc(t('panel.verified'))}</span>`
+            : `<button class="btn btn-sm" id="verifyCard">${esc(t('panel.verify'))}</button>`}
+        </div>
+      ` : ''}
+    </div>`;
+}
+
+function assigneeField(c) {
+  const sync = window.DepdoitSync;
+  const members = sync && sync.members ? sync.members() : [];
+  // Sin backend no hay a quién asignar: no se pinta un campo muerto.
+  if (!members.length) return '';
+
+  const assigned = (c.assignees || []).map((a) => a.user_id);
+  return `<div class="field">
+      <span class="field-label">${esc(t('panel.assignees'))}${assigned.length ? ` · ${assigned.length}` : ''}</span>
+      <div class="assignee-list">
+        ${members.map((m) => {
+          const on = assigned.includes(m.user_id);
+          const initial = (m.email || '?').trim().charAt(0).toUpperCase();
+          return `<button class="assignee-chip ${on ? 'is-on' : ''}" data-assign="${m.user_id}"
+            title="${esc(m.email)}" aria-pressed="${on}">
+            <span class="assignee-avatar">${esc(initial)}</span>
+            <span class="assignee-mail">${esc(m.email.split('@')[0])}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>`;
 }
 
 function renderChecklist(cl) {
@@ -1523,6 +1642,51 @@ $('#panelBody').addEventListener('click', (e) => {
     return;
   }
 
+  const kindBtn = tEl.closest('[data-kind]');
+  if (kindBtn) {
+    const k = kindBtn.dataset.kind;
+    mutate(() => { c.kind = k; if (k === 'task') c.severity = null; });
+    return;
+  }
+
+  const sevBtn = tEl.closest('[data-severity]');
+  if (sevBtn) {
+    mutate(() => { c.severity = sevBtn.dataset.severity; });
+    return;
+  }
+
+  if (tEl.closest('#verifyCard')) {
+    window.DepdoitSync.verify(c.id)
+      .then(() => { c.verifiedAt = new Date().toISOString(); renderPanel(); toast(t('panel.verified')); })
+      .catch((err) => toast(err.message || 'No se pudo verificar'));
+    return;
+  }
+
+  // Asignar / desasignar. Va contra el backend, no contra el estado local:
+  // la asignación es un hecho del dominio, no un array suelto en la tarjeta.
+  const asg = tEl.closest('[data-assign]');
+  if (asg) {
+    const userId = asg.dataset.assign;
+    const current = (c.assignees || []).map((a) => a.user_id);
+    const isOn = current.includes(userId);
+    const email = (window.DepdoitSync.members().find((m) => m.user_id === userId) || {}).email || '';
+
+    // Optimista: se pinta ya. Si el servidor lo rechaza, se revierte.
+    c.assignees = isOn
+      ? (c.assignees || []).filter((a) => a.user_id !== userId)
+      : [...(c.assignees || []), { user_id: userId, email }];
+    renderPanel();
+
+    window.DepdoitSync.assign(c.id, userId, !isOn).catch((err) => {
+      toast(err.message || 'No se pudo asignar');
+      c.assignees = isOn
+        ? [...(c.assignees || []), { user_id: userId, email }]
+        : (c.assignees || []).filter((a) => a.user_id !== userId);
+      renderPanel();
+    });
+    return;
+  }
+
   if (tEl.closest('[data-cal-for]')) {
     openCalendar(tEl.closest('[data-cal-for]').dataset.calFor);
     return;
@@ -1545,6 +1709,16 @@ $('#panelBody').addEventListener('input', (e) => {
 
   if (tEl.id === 'descEditor') {
     c.desc = tEl.value;                      // sin re-render: no pierde el cursor
+    save();
+    return;
+  }
+  if (tEl.id === 'expectedInput') {
+    c.expected = tEl.value;
+    save();
+    return;
+  }
+  if (tEl.id === 'actualInput') {
+    c.actual = tEl.value;
     save();
     return;
   }
@@ -1594,6 +1768,17 @@ $('#panelBody').addEventListener('keydown', (e) => {
         if (it) it.name = v || it.name;
       }
     });
+  }
+});
+
+// Los textareas de evidencia no re-renderizan al escribir (perderían el
+// cursor), así que el envío al backend se hace al salir del campo con una
+// llamada explícita, no fabricando un diff falso.
+$('#panelBody').addEventListener('focusout', (e) => {
+  const c = card(view.selectedId);
+  if (!c) return;
+  if (e.target.id === 'expectedInput' || e.target.id === 'actualInput') {
+    window.DepdoitSync.saveEvidence(c);
   }
 });
 
@@ -1908,6 +2093,34 @@ function init() {
   if (!hadData) { localStorage.removeItem(STORAGE_KEY); seed(); }
   render();
 
+  // Con backend configurado, el tablero real sustituye a lo local en cuanto
+  // haya sesión. Sin sesión, la app sigue funcionando en local como antes.
+  if (window.DepdoitSync && window.DepdoitSync.enabled()) {
+    window.DepdoitSync.boot((state, ctx) => {
+      if (state) {
+        S = {
+          boards: state.boards,
+          lists: state.lists,
+          cards: state.cards,
+          boardOrder: state.boardOrder.length ? state.boardOrder : S.boardOrder,
+          ui: {},
+          __demo: false,
+        };
+        // Si el servidor llega vacío (empresa nueva), se siembra un tablero
+        // mínimo en lugar de dejar al usuario mirando una pantalla en blanco.
+        if (!S.boardOrder.length) {
+          const b = uid();
+          S.boards[b] = { id: b, name: 'Tareas', lists: [], createdAt: Date.now() };
+          S.boardOrder.push(b);
+        }
+        view.boardId = S.boardOrder[0];
+        view.selectedId = null;
+        save();
+        render();
+      }
+    });
+  }
+
   setTimeout(() => {
     if (!localStorage.getItem(STORAGE_KEY)) toast(t('toast.welcome'));
   }, 700);
@@ -1915,5 +2128,9 @@ function init() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+
+// Puente mínimo para que el backend pueda avisar al usuario con el toast de la
+// propia app, en vez de inventar una segunda forma de notificar.
+window.DepdoitUI = { toast };
 
 })();

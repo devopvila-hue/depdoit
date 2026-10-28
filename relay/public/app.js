@@ -70,6 +70,8 @@ async function api(path, { method = 'GET', body } = {}) {
   const init = { method, headers: {} };
   const token = await getAuthToken();
   if (token) init.headers.authorization = `Bearer ${token}`;
+  const workspace = window.DepdoitAuth?.context();
+  if (workspace) init.headers['x-organization-id'] = workspace.organizationId;
   if (body !== undefined) {
     init.headers['content-type'] = 'application/json';
     init.body = JSON.stringify(body);
@@ -77,7 +79,9 @@ async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(API_BASE + path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && !path.includes('/api/meta')) askToken();
+    if (res.status === 401 && window.DepdoitAuth) {
+      window.DepdoitAPI.signOut(); location.reload();
+    } else if (res.status === 401 && !path.includes('/api/meta')) askToken();
     const error = new Error(data.error || `Error ${res.status}`);
     error.status = res.status;
     throw error;
@@ -160,6 +164,7 @@ function setRelayToken(value) {
 
 /** Token para la API: primero la sesión compartida, si no, el token propio. */
 async function getAuthToken() {
+  if (window.DepdoitAuth) return window.DepdoitAPI.token();
   const session = readSharedSession();
   if (session) {
     if (!session.expired) return session.access_token;
@@ -1321,6 +1326,7 @@ function bindStaticEvents() {
   });
 
   $('btn-new-user').addEventListener('click', () => {
+    if (window.DepdoitAuth) { location.assign('/admin'); return; }
     openModal(
       t('modal.newMember'),
       `<label>${escapeHtml(t('modal.name'))}</label><input name="displayName" placeholder="${escapeHtml(t('placeholder.person'))}" />
@@ -1364,24 +1370,13 @@ async function init() {
 
   try {
     await loadConfig();
+    if (window.DepdoitAuth) { await window.DepdoitAuth.ensure(); window.DepdoitAuth.mount(); }
     state.meta = await api('/api/meta');
     const notice = $('notice');
-    if (notice) {
-      const available = state.meta.translation?.available;
-      const shared = Boolean(window.RELAY_CONFIG?.supabaseUrl);
-      notice.textContent = available ? t('notice.translationOn') : t('notice.translationOff');
-      notice.className = available ? 'notice notice-ok' : 'notice';
-      notice.hidden = false;
-      if (shared) {
-        const sso = el('div', 'notice notice-ok');
-        sso.style.margin = '8px 20px 0';
-        sso.textContent = t('notice.ssoShared');
-        notice.after(sso);
-      }
-    }
+    if (notice) notice.hidden = true;
     await refreshProjects();
   } catch (error) {
-    $('view-root').innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p></div>`;
+    $('view-root').innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p><a href="/admin">Equipo e invitaciones</a> · <button class="btn" onclick="location.reload()">Reintentar</button> · <button class="btn" onclick="window.DepdoitAPI?.signOut();location.reload()">Cambiar cuenta</button></div>`;
   }
 }
 

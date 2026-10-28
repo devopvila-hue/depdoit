@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './src/db.js';
+import { createWorkspaceManager } from './src/workspaces.js';
 import { createStore } from './src/store.js';
 import { createServer } from './src/server.js';
 import { createTranslator } from './src/translate.js';
@@ -14,16 +15,19 @@ const DB_FILE = process.env.RELAY_DB || path.join(ROOT, 'data', 'relay.db');
 
 mkdirSync(path.dirname(DB_FILE), { recursive: true });
 
-const db = openDb(DB_FILE);
-const store = createStore(db);
+const workspaceDirectory = process.env.RELAY_WORKSPACE_DIR;
+const workspaceManager = workspaceDirectory ? createWorkspaceManager(workspaceDirectory) : null;
+const db = workspaceManager ? null : openDb(DB_FILE);
+const store = db ? createStore(db) : null;
 const translator = createTranslator(process.env);
 const token = process.env.RELAY_TOKEN?.trim() || null;
 const basePath = process.env.RELAY_BASE_PATH?.trim() || '';
 const supabase = createSupabaseVerifier({
   url: process.env.SUPABASE_URL,
   anonKey: process.env.SUPABASE_ANON_KEY,
+  requireMembership: Boolean(workspaceManager),
 });
-const server = createServer({ store, translator, token, supabase, basePath });
+const server = createServer({ store, translator, token, supabase, basePath, workspaceManager });
 
 server.listen(PORT, HOST, () => {
   console.log(`Relay escuchando en http://${HOST}:${PORT}`);
@@ -46,7 +50,8 @@ server.listen(PORT, HOST, () => {
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     server.close(() => {
-      db.close();
+      db?.close();
+      workspaceManager?.close();
       process.exit(0);
     });
   });
