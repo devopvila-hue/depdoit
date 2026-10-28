@@ -65,3 +65,16 @@ test('failed membership lookup never accepts user metadata as permission', async
   const verifier=createSupabaseVerifier({url:'https://example.supabase.co',anonKey:'public',requireMembership:true,fetchImpl:async url=>url.endsWith('/user')?Response.json({id:'user',user_metadata:{organization_id:A}}):new Response('{}',{status:503})});
   assert.equal(await verifier.verify('valid',A),null);
 });
+
+
+test('intentional empty dates survive reopening a workspace', () => {
+  const directory=mkdtempSync(path.join(tmpdir(),'relay-empty-dates-'));
+  let manager=createWorkspaceManager(directory);
+  try {
+    const store=manager.get(A).store;store.createProject({key:'DD',name:'Dates'});
+    const issue=store.createIssue({projectKey:'DD',summary:'No dates',startDate:null,dueDate:null});
+    manager.close();manager=createWorkspaceManager(directory);
+    const restored=manager.get(A).store.getIssue(issue.key);
+    assert.equal(restored.startDate,null);assert.equal(restored.dueDate,null);
+  } finally {manager.close();rmSync(directory,{recursive:true,force:true});}
+});

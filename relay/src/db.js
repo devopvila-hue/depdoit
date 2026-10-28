@@ -105,14 +105,14 @@ function migrate(db) {
       db.exec(`ALTER TABLE issues ADD COLUMN ${name} ${type}`);
     }
   }
-  // Las incidencias anteriores no tenían fechas: se situan desde su creación
-  // con una duración por defecto de una semana, para que el Gantt no salga vacío.
-  db.exec(
-    `UPDATE issues SET start_date = substr(created_at, 1, 10) WHERE start_date IS NULL OR start_date = ''`
-  );
-  db.exec(
-    `UPDATE issues SET due_date = date(substr(created_at, 1, 10), '+7 days') WHERE due_date IS NULL OR due_date = ''`
-  );
+  // Backfill only when adding dates to an OLD schema. Never rewrite an
+  // intentionally cleared date on every restart of an already migrated DB.
+  if (!columns.has('start_date')) {
+    db.exec(`UPDATE issues SET start_date = substr(created_at, 1, 10) WHERE start_date IS NULL OR start_date = ''`);
+  }
+  if (!columns.has('due_date')) {
+    db.exec(`UPDATE issues SET due_date = date(substr(created_at, 1, 10), '+7 days') WHERE due_date IS NULL OR due_date = ''`);
+  }
 }
 
 /**
