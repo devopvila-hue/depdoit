@@ -111,7 +111,12 @@ export function createServer({ store, translator, token, supabase, publicDir = P
     const bearer = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
 
     if (supabase?.available) {
-      const user = await supabase.verify(bearer);
+      let user = null;
+      try {
+        user = await supabase.verify(bearer);
+      } catch {
+        user = null;
+      }
       if (!user) {
         sendJson(res, 401, { error: 'Sesión no válida o ausente' });
         return;

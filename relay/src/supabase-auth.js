@@ -26,22 +26,27 @@ export function createSupabaseVerifier({ url, anonKey, fetchImpl = fetch }) {
 
   async function verify(token) {
     if (!token) return null;
-    const response = await fetchImpl(`${base}/auth/v1/user`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${token}`,
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!response.ok) return null;
-    const user = await response.json().catch(() => null);
-    if (!user?.id) return null;
-    return {
-      id: user.id,
-      email: user.email ?? null,
-      role: user.role ?? null,
-      organization: user.user_metadata?.organization_id ?? user.app_metadata?.organization_id ?? null,
-    };
+    try {
+      const response = await fetchImpl(`${base}/auth/v1/user`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${token}`,
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) return null;
+      const user = await response.json().catch(() => null);
+      if (!user?.id) return null;
+      return {
+        id: user.id,
+        email: user.email ?? null,
+        role: user.role ?? null,
+        organization: user.user_metadata?.organization_id ?? user.app_metadata?.organization_id ?? null,
+      };
+    } catch {
+      // Supabase caído o inaccesible: el token no se puede validar.
+      return null;
+    }
   }
 
   return { available: true, verify, url: base };

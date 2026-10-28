@@ -38,6 +38,17 @@ describe('sesión de Supabase compartida', () => {
     assert.equal(await verifier.verify(''), null);
   });
 
+  it('no propaga el fallo si Supabase no responde', async () => {
+    const verifier = createSupabaseVerifier({
+      url: 'https://proyecto.supabase.co',
+      anonKey: 'clave-anonima',
+      fetchImpl: async () => {
+        throw new Error('ECONNREFUSED');
+      },
+    });
+    assert.equal(await verifier.verify('token-valido'), null);
+  });
+
   it('queda deshabilitado sin url o clave', async () => {
     const verifier = createSupabaseVerifier({ url: '', anonKey: '' });
     assert.equal(verifier.available, false);
@@ -63,6 +74,27 @@ describe('sesión de Supabase compartida', () => {
 
     const allowed = await fetch(`${base}/api/projects`, { headers: { authorization: 'Bearer token-valido' } });
     assert.equal(allowed.status, 200);
+
+    server.close();
+  });
+
+  it('responde 401 y no 500 cuando la validación de Supabase revienta', async () => {
+    const db = openDb(':memory:');
+    const store = createStore(db);
+    const supabase = {
+      available: true,
+      verify: async () => {
+        throw new Error('Supabase inalcanzable');
+      },
+    };
+    const server = createServer({ store, supabase });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+
+    const response = await fetch(`${base}/api/projects`, {
+      headers: { authorization: 'Bearer token-valido' },
+    });
+    assert.equal(response.status, 401);
 
     server.close();
   });
