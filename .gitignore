@@ -29,3 +29,9 @@ build/
 *.local.json
 # Datos locales de Relay (base SQLite, nunca se sube)
 relay/data/
+
+# Local deployment configuration and generated output
+config.js
+.vercel/
+site/
+relay/data/

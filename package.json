@@ -1,0 +1,11 @@
+{
+  "name": "departify-tasks",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "build": "node scripts/build-site.js",
+    "test": "node --no-warnings=ExperimentalWarning --test relay/test/*.test.js test/*.test.js",
+    "start": "node --no-warnings=ExperimentalWarning relay/server.js"
+  }
+}

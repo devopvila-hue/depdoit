@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApi } from './api.js';
 import { HttpError } from './errors.js';
+import { importLegacy } from './legacy-import.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PUBLIC_DIR = path.resolve(HERE, '..', 'public');
@@ -58,10 +59,10 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-async function serveStatic(res, pathname) {
+async function serveStatic(res, pathname, publicDir = PUBLIC_DIR) {
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const target = path.resolve(PUBLIC_DIR, relative);
-  if (target !== PUBLIC_DIR && !target.startsWith(PUBLIC_DIR + path.sep)) {
+  const target = path.resolve(publicDir, relative);
+  if (target !== publicDir && !target.startsWith(publicDir + path.sep)) {
     res.writeHead(403).end('Prohibido');
     return;
   }
@@ -108,8 +109,10 @@ export function normalizeBasePath(value) {
  *
  * @param {{store: object, translator?: object, token?: string, supabase?: object, publicDir?: string, basePath?: string}} options
  */
-export function createServer({ store, translator, token, supabase, publicDir = PUBLIC_DIR, basePath = '' }) {
-  const api = createApi(store, { translator });
+export function createServer({ store, translator, token, supabase, publicDir = PUBLIC_DIR, basePath = '', workspaceManager }) {
+  const api = store ? createApi(store, { translator }) : null;
+  const workspaceApis = new WeakMap();
+  if (workspaceManager && !supabase?.available) throw new Error('Workspace mode requires Supabase authentication');
   const base = normalizeBasePath(basePath);
 
   const server = http.createServer(async (req, res) => {
@@ -132,7 +135,7 @@ export function createServer({ store, translator, token, supabase, publicDir = P
     }
 
     if (!pathname.startsWith('/api/')) {
-      await serveStatic(res, pathname);
+      await serveStatic(res, pathname, publicDir);
       return;
     }
 
@@ -144,7 +147,7 @@ export function createServer({ store, translator, token, supabase, publicDir = P
     if (supabase?.available) {
       let user = null;
       try {
-        user = await supabase.verify(bearer);
+        user = await supabase.verify(bearer, req.headers['x-organization-id']);
       } catch {
         user = null;
       }
@@ -162,11 +165,46 @@ export function createServer({ store, translator, token, supabase, publicDir = P
     }
 
     try {
-      const match = api.match(req.method, pathname);
+      let selectedApi = api;
+      let selectedStore = store;
+      if (workspaceManager) {
+        if (!req.user?.organization) throw new HttpError(403, 'No perteneces a esta empresa');
+        const workspace = workspaceManager.get(req.user.organization);
+        selectedStore = workspace.store;
+        if (supabase.legacyBoards && !workspace.initialized) {
+          if (!workspace.initializing) workspace.initializing = (async () => {
+            const imported = workspace.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='workspace_settings'").get() &&
+              workspace.db.prepare("SELECT value FROM workspace_settings WHERE name='legacy-import-v1'").get();
+            if (!imported) {
+              const [rows, members] = await Promise.all([supabase.legacyBoards(bearer, req.user.organization), supabase.members(bearer, req.user.organization)]);
+              importLegacy(workspace, rows, members);
+            }
+            workspace.initialized = true;
+          })().finally(() => { workspace.initializing = null; });
+          await workspace.initializing;
+        }
+        if (pathname === '/api/users' && req.method === 'GET' && supabase.members) {
+          const members = await supabase.members(bearer, req.user.organization);
+          const allowed = new Set();
+          for (const member of members) {
+            if (!member.email) continue;
+            const email = member.email.toLowerCase(); allowed.add(email);
+            if (!selectedStore.listUsers().some(user => user.email === email)) selectedStore.createUser({ displayName: email.split('@')[0], email });
+          }
+          sendJson(res, 200, selectedStore.listUsers().filter(user => allowed.has(user.email)));
+          return;
+        }
+        if (!workspaceApis.has(workspace)) workspaceApis.set(workspace, createApi(selectedStore, { translator }));
+        selectedApi = workspaceApis.get(workspace);
+        // Team identity comes from Supabase invitations, never free-form Relay accounts.
+        if (pathname === '/api/users' && req.method !== 'GET') throw new HttpError(403, 'Gestiona el equipo desde /admin');
+      }
+      if (!selectedApi) throw new HttpError(503, 'Espacio de trabajo no disponible');
+      const match = selectedApi.match(req.method, pathname);
       if (!match) throw new HttpError(404, `Ruta no encontrada: ${req.method} ${pathname}`);
       const body = req.method === 'GET' || req.method === 'DELETE' ? {} : await readBody(req);
       const query = Object.fromEntries(searchParams.entries());
-      const result = await match.handler({ params: match.params, query, body, store });
+      const result = await match.handler({ params: match.params, query, body, store: selectedStore });
       sendJson(res, req.method === 'POST' && result?.created ? 201 : 200, result ?? { ok: true });
     } catch (error) {
       if (error?.message === '__method__') {

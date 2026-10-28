@@ -1,0 +1,8 @@
+.shared-auth { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:#07090d; overflow:auto; }
+.shared-auth-card { width:min(100%,400px); display:grid; gap:14px; padding:28px; background:#111720; border:1px solid #283040; border-radius:16px; color:#eef2f8; }
+.shared-auth-card h1,.shared-auth-card p { margin:0; }
+.shared-auth-card input { display:block; width:100%; padding:12px; background:#07090d; border:1px solid #394355; border-radius:8px; color:#eef2f8; font:inherit; }
+.shared-auth-card label { display:block; }
+.shared-auth-card summary { cursor:pointer; margin:8px 0; }
+.shared-auth-card details .btn { margin-top:12px; width:100%; }
+.shared-auth-card small { color:#9aa4b8; }

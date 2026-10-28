@@ -501,3 +501,17 @@ label { display: block; font-size: 12px; color: var(--ink-2); margin: 13px 0 5px
   .sidebar { width: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
   .sprint-grid { grid-template-columns: 1fr; }
 }
+
+/* Shared access, same Supabase session as the original board. */
+.workspace-access { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 20px; border-bottom:1px solid var(--line); }
+.workspace-access:empty { display:none; }
+.workspace-access select { max-width:100%; padding:7px; background:var(--bg-lift); color:var(--ink); border:1px solid var(--line); border-radius:8px; }
+.shared-auth { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:#07090d; overflow:auto; }
+.shared-auth-card { width:min(100%,400px); display:grid; gap:14px; padding:28px; background:#111720; border:1px solid #283040; border-radius:16px; color:#eef2f8; }
+.shared-auth-card h1,.shared-auth-card p { margin:0; }
+.shared-auth-card input { display:block; width:100%; padding:12px; background:#07090d; border:1px solid #394355; border-radius:8px; color:#eef2f8; font:inherit; }
+.shared-auth-card label { display:block; }
+.shared-auth-card summary { cursor:pointer; margin:8px 0; }
+.shared-auth-card details .btn { margin-top:12px; width:100%; }
+.shared-auth-card small { color:#9aa4b8; }
+@media(max-width:600px) { .topbar { flex-wrap:wrap; gap:8px; padding:10px; } .project-switch { flex:1; min-width:0; } .project-switch select { min-width:0; width:100%; } .search { order:5; max-width:none; flex-basis:100%; } .workspace-access { padding:8px; } .workspace-access .btn { font-size:12px; } }

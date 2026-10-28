@@ -1,0 +1,12 @@
+.git
+.vercel
+node_modules
+site
+backend
+relay/data
+relay/test
+test
+*.md
+*.env
+.env*
+config.example.js
