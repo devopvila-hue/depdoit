@@ -4,7 +4,7 @@ const root = new URL('../', import.meta.url);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 cpSync(new URL('relay/public/', root), out, { recursive: true });
-for (const name of ['board', 'admin.html', 'admin.js', 'backend-client.js', 'auth.js', 'auth.css', 'sync.js', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png']) {
+for (const name of ['board', 'admin.html', 'admin.js', 'backend-client.js', 'auth.js', 'access-i18n.js', 'auth.css', 'sync.js', 'favicon.ico', 'favicon-32.png', 'apple-touch-icon.png']) {
   cpSync(new URL(name, root), new URL(name, out), { recursive: true });
 }
 const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
