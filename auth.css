@@ -14,3 +14,5 @@
 #translationForm input[type="password"] { width:100%; box-sizing:border-box; }
 #translationForm input[type="checkbox"] { width:auto; }
 @media (max-width:600px) { .admin-app .brand { flex:1 1 auto; } .admin-heading { order:4; flex:1 1 100%; } .admin-person { flex-wrap:wrap; } .admin-person-actions { max-width:100%; } }
+#translationForm .admin-help { color:#5d6472; }
+[data-theme="dark"] #translationForm .admin-help { color:#b2bbca; }
