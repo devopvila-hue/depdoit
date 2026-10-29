@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createApi } from './api.js';
 import { HttpError } from './errors.js';
 import { importLegacy } from './legacy-import.js';
+import { translationSettings } from './translation-settings.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PUBLIC_DIR = path.resolve(HERE, '..', 'public');
@@ -194,7 +195,18 @@ export function createServer({ store, translator, token, supabase, publicDir = P
           sendJson(res, 200, selectedStore.listUsers().filter(user => allowed.has(user.email)));
           return;
         }
-        if (!workspaceApis.has(workspace)) workspaceApis.set(workspace, createApi(selectedStore, { translator }));
+        const settings = translationSettings(workspace, translator);
+        if (pathname === '/api/settings/translation') {
+          if (req.user.role !== 'owner') throw new HttpError(403, 'Owner access required');
+          if (req.method === 'GET') { sendJson(res, 200, settings.status()); return; }
+          if (req.method === 'PATCH') {
+            const result = await settings.save(await readBody(req));
+            // APIs resolve the current translator dynamically, including pending jobs.
+            sendJson(res, 200, result); return;
+          }
+          throw new HttpError(405, 'Method not allowed');
+        }
+        if (!workspaceApis.has(workspace)) workspaceApis.set(workspace, createApi(selectedStore, { translator: settings.translator }));
         selectedApi = workspaceApis.get(workspace);
         // Team identity comes from Supabase invitations, never free-form Relay accounts.
         if (pathname === '/api/users' && req.method !== 'GET') throw new HttpError(403, 'Gestiona el equipo desde /admin');
@@ -211,7 +223,7 @@ export function createServer({ store, translator, token, supabase, publicDir = P
         sendJson(res, 405, { error: `Método no permitido: ${req.method} ${pathname}` });
         return;
       }
-      const status = error instanceof HttpError ? error.status : 500;
+      const status = error instanceof HttpError ? error.status : error?.status === 502 || error?.status === 503 ? error.status : 500;
       if (status >= 500) console.error('[relay] error interno:', error);
       sendJson(res, status, {
         error: error?.message ?? 'Error interno',

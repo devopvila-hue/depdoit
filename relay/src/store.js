@@ -477,6 +477,9 @@ export function createStore(db) {
       db.exec('BEGIN IMMEDIATE');
       try {
         st.updateIssue.run(type, summary, description, status, priority, assigneeId, startDate, dueDate, sourceLang, now(), issue.id);
+        if (summary !== issue.summary || description !== issue.description || sourceLang !== issue.source_lang) {
+          db.prepare('DELETE FROM issue_translations WHERE issue_id = ?').run(issue.id);
+        }
         if (Array.isArray(body.labels)) applyLabels(issue.id, body.labels);
         if (body.sprintId !== undefined) {
           st.unlinkIssueFromAllSprints.run(issue.id);

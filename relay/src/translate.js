@@ -37,6 +37,13 @@ export function createTranslator(env = process.env) {
   const model = env.LLM_MODEL?.trim() || 'MiniMax-M2';
 
   const available = Boolean(apiKey);
+  let activeCalls = 0;
+  const waiting = [];
+  async function acquire() {
+    if (activeCalls >= 3) await new Promise(resolve => waiting.push(resolve));
+    else activeCalls++;
+  }
+  function release() { const next = waiting.shift(); if (next) next(); else activeCalls--; }
   const providerName = available ? `llm:${model}` : 'manual';
 
   function chatUrl() {
@@ -76,36 +83,38 @@ export function createTranslator(env = process.env) {
       response_format: { type: 'json_object' },
     };
 
-    const response = await fetch(chatUrl(), {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000),
-    });
+    await acquire();
+    try {
+      const response = await fetch(chatUrl(), {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(60000),
+      });
 
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      const error = new Error(`El proveedor de traducción respondió ${response.status}: ${detail.slice(0, 200)}`);
-      error.status = 502;
-      throw error;
-    }
+      if (!response.ok) {
+        const error = new Error(`Translation provider unavailable (${response.status})`);
+        error.status = 502;
+        throw error;
+      }
 
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content ?? '';
-    const parsed = parseJson(content);
-    if (!parsed) {
-      const error = new Error('El proveedor de traducción no devolvió JSON válido');
-      error.status = 502;
-      throw error;
-    }
-    return {
-      summary: String(parsed.summary ?? '').trim(),
-      description: String(parsed.description ?? '').trim(),
-      provider: providerName,
-    };
+      const data = await response.json();
+      const content = data?.choices?.[0]?.message?.content ?? '';
+      const parsed = parseJson(content);
+      if (!parsed || typeof parsed.summary !== 'string' || !parsed.summary.trim() || typeof parsed.description !== 'string') {
+        const error = new Error('El proveedor de traducción no devolvió JSON válido');
+        error.status = 502;
+        throw error;
+      }
+      return {
+        summary: String(parsed.summary ?? '').trim(),
+        description: String(parsed.description ?? '').trim(),
+        provider: providerName,
+      };
+    } finally { release(); }
   }
 
   return { available, provider: providerName, translate, targetLanguageName: (code) => LANG_NAMES[code] || code };

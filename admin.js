@@ -12,6 +12,8 @@
 'use strict';
 
 const API = window.DepdoitAPI;
+const t = (key, vars) => window.TasksI18n.t(key, vars);
+let translation = null;
 const $ = (s, r = document) => r.querySelector(s);
 
 let ctx = null;
@@ -75,9 +77,9 @@ async function boot() {
 
   if (!API.readSession()) {
     main.innerHTML = `<div class="admin-card admin-gate">
-      <h1>Equipo</h1>
-      <p>Entra con tu cuenta para gestionar quién tiene acceso.</p>
-      <a class="btn btn-primary" href="/">Ir al tablero e iniciar sesión</a>
+      <h1>${esc(t('team'))}</h1>
+      <p>${esc(t('gate'))}</p>
+      <a class="btn btn-primary" href="/">${esc(t('gateLink'))}</a>
     </div>`;
     return;
   }
@@ -86,15 +88,15 @@ async function boot() {
     ctx = await API.loadContext();
   } catch (err) {
     main.innerHTML = `<div class="admin-card admin-gate">
-      <h1>No se pudo cargar</h1><p>${esc(err.message)}</p>
-      <button class="btn" id="retry">Reintentar</button></div>`;
+      <h1>${esc(t('loadError'))}</h1><p>${esc(err.message)}</p>
+      <button class="btn" id="retry">${esc(t('retry'))}</button></div>`;
     $('#retry').addEventListener('click', boot);
     return;
   }
 
   if (!ctx) {
     main.innerHTML = `<div class="admin-card admin-gate">
-      <h1>Sin empresa</h1><p>Tu cuenta no pertenece a ninguna empresa.</p></div>`;
+      <h1>${esc(t('noCompany'))}</h1><p>${esc(t('noCompanyHint'))}</p></div>`;
     return;
   }
 
@@ -110,6 +112,10 @@ async function refresh() {
   } catch (err) {
     invitations = [];
   }
+  if (ctx.role === 'owner') {
+    try { translation = await relaySettings(); }
+    catch { translation = null; }
+  }
   render();
 }
 
@@ -124,19 +130,19 @@ function render() {
   const orgs = ctx.organizations || [];
   if (orgs.length > 1) {
     $('#adminHeading').innerHTML = `<select class="org-switch" id="orgSwitch"
-        title="Empresa activa" aria-label="Empresa activa">
+        title="${esc(t('activeOrg'))}" aria-label="${esc(t('activeOrg'))}">
         ${orgs.map((o) => `<option value="${o.organizationId}"
           ${o.organizationId === ctx.organizationId ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}
       </select>`;
   } else {
-    $('#adminHeading').textContent = ctx.organizationName || 'Equipo';
+    $('#adminHeading').textContent = ctx.organizationName || t('team');
   }
 
   main.innerHTML = `
-    ${isOwner ? renderInviteCard() : renderReadOnlyNotice()}
+    ${isOwner ? renderInviteCard() + renderTranslationCard() : renderReadOnlyNotice()}
 
     <section class="admin-card">
-      <h2 class="admin-h2">Personas con acceso <span class="admin-count">${ctx.members.length}</span></h2>
+      <h2 class="admin-h2">${esc(t('people'))} <span class="admin-count">${ctx.members.length}</span></h2>
       <div class="admin-people">
         ${ctx.members.map((m) => renderMemberRow(m, isOwner)).join('')}
       </div>
@@ -145,38 +151,38 @@ function render() {
     ${isOwner && invitations.length ? renderPendingCard() : ''}
   `;
 
+  $('#backToBoard').textContent = t('back');
+  $('#themeBtn').setAttribute('aria-label', t('theme'));
+  document.title = t('team') + ' · Departify';
   bind();
 }
 
 function renderReadOnlyNotice() {
   return `<div class="admin-card admin-notice">
-      <p>Ves el equipo, pero solo el propietario de la empresa puede invitar,
-      cambiar roles o dar de baja.</p>
+      <p>${esc(t('readOnly'))}</p>
     </div>`;
 }
 
 function renderInviteCard() {
   return `<section class="admin-card">
-      <h2 class="admin-h2">Invitar a alguien</h2>
-      <p class="admin-help">Se genera un enlace de un solo uso, válido 7 días.
-      Cópialo y mándalo tú: por WhatsApp, por email, como prefieras.</p>
+      <h2 class="admin-h2">${esc(t('invite'))}</h2>
+      <p class="admin-help">${esc(t('inviteHelp'))}</p>
       <form class="admin-form" id="inviteForm">
-        <input class="input" id="inviteEmail" type="email" placeholder="persona@empresa.com"
+        <input class="input" id="inviteEmail" type="email" placeholder="${esc(t('emailPlaceholder'))}" aria-label="${esc(t('email'))}"
                autocomplete="off" required>
-        <select class="input select" id="inviteRole">
-          <option value="member">Miembro</option>
-          <option value="owner">Propietario</option>
+        <select class="input select" id="inviteRole" aria-label="${esc(t('member'))}">
+          <option value="member">${esc(t('member'))}</option>
+          <option value="owner">${esc(t('owner'))}</option>
         </select>
-        <button class="btn btn-primary" type="submit" id="inviteSubmit">Crear enlace</button>
+        <button class="btn btn-primary" type="submit" id="inviteSubmit">${esc(t('createLink'))}</button>
       </form>
       <div class="admin-invite-result" id="inviteResult" hidden>
-        <label class="field-label" for="inviteLink">Enlace de invitación</label>
+        <label class="field-label" for="inviteLink">${esc(t('inviteLink'))}</label>
         <div class="admin-link-row">
           <input class="input" id="inviteLink" readonly>
-          <button class="btn" id="copyLink" type="button">Copiar</button>
+          <button class="btn" id="copyLink" type="button">${esc(t('copy'))}</button>
         </div>
-        <p class="admin-hint">Si lo reenvías, solo funcionará con la cuenta
-        de <strong id="inviteFor"></strong>.</p>
+        <p class="admin-hint">${esc(t('inviteFor'))} <strong id="inviteFor"></strong>.</p>
       </div>
     </section>`;
 }
@@ -189,24 +195,22 @@ function renderMemberRow(m, isOwner) {
   return `<div class="admin-person" data-user="${m.user_id}">
       <span class="assignee-avatar admin-avatar">${esc(initial)}</span>
       <div class="admin-person-info">
-        <span class="admin-person-mail">${esc(m.email)}${isMe ? ' <span class="admin-you">(tú)</span>' : ''}</span>
-        <span class="admin-person-role ${isOwnerRow ? 'is-owner' : ''}">${isOwnerRow ? 'Propietario' : 'Miembro'}</span>
+        <span class="admin-person-mail">${esc(m.email)}${isMe ? ` <span class="admin-you">${esc(t('you'))}</span>` : ''}</span>
+        <span class="admin-person-role ${isOwnerRow ? 'is-owner' : ''}">${isOwnerRow ? t('owner') : t('member')}</span>
       </div>
       ${isOwner ? `<div class="admin-person-actions">
         <button class="btn btn-sm" data-role="${m.user_id}" data-next="${isOwnerRow ? 'member' : 'owner'}">
-          ${isOwnerRow ? 'Hacer miembro' : 'Hacer propietario'}
+          ${isOwnerRow ? t('makeMember') : t('makeOwner')}
         </button>
-        ${!isOwnerRow && !isMe ? `<button class="btn btn-sm btn-danger" data-remove="${m.user_id}">Quitar</button>` : ''}
+        ${!isOwnerRow && !isMe ? `<button class="btn btn-sm btn-danger" data-remove="${m.user_id}">${esc(t('remove'))}</button>` : ''}
       </div>` : ''}
     </div>`;
 }
 
 function renderPendingCard() {
   return `<section class="admin-card">
-      <h2 class="admin-h2">Invitaciones pendientes</h2>
-      <p class="admin-help">El enlace no se puede recuperar del servidor (solo
-      se guarda su huella). Si lo perdiste, genera uno nuevo: el anterior deja
-      de funcionar.</p>
+      <h2 class="admin-h2">${esc(t('pendingInvites'))}</h2>
+      <p class="admin-help">${esc(t('pendingHelp'))}</p>
       <div class="admin-people">
         ${invitations.map((i) => {
           const cached = getLink(i.email);
@@ -214,16 +218,16 @@ function renderPendingCard() {
             <span class="assignee-avatar admin-avatar admin-avatar-pending">?</span>
             <div class="admin-person-info">
               <span class="admin-person-mail">${esc(i.email)}</span>
-              <span class="admin-person-role">${i.expired ? 'Caducada' : 'Pendiente'} ·
-                ${i.role === 'owner' ? 'Propietario' : 'Miembro'}</span>
+              <span class="admin-person-role">${i.expired ? t('expired') : t('pending')} ·
+                ${i.role === 'owner' ? t('owner') : t('member')}</span>
             </div>
             <div class="admin-person-actions">
               ${cached
-                ? `<button class="btn btn-sm" data-copy-invite="${esc(i.email)}">Copiar enlace</button>
+                ? `<button class="btn btn-sm" data-copy-invite="${esc(i.email)}">${esc(t('copyLink'))}</button>
                    <button class="btn btn-sm" data-regen-invite="${esc(i.email)}"
-                     data-regen-role="${i.role}">Nuevo</button>`
+                     data-regen-role="${i.role}">${esc(t('new'))}</button>`
                 : `<button class="btn btn-sm btn-primary" data-regen-invite="${esc(i.email)}"
-                     data-regen-role="${i.role}">Generar enlace</button>`}
+                     data-regen-role="${i.role}">${esc(t('generateLink'))}</button>`}
             </div>
           </div>`;
         }).join('')}
@@ -255,12 +259,48 @@ async function regenerate(email, role) {
   saveLink(email, url);
   await refresh();
   showLink(email, url);
-  toast('Enlace nuevo generado. El anterior ya no sirve.');
+  toast(t('regenerated'));
+}
+
+async function relaySettings(body) {
+  const token = await API.token();
+  const response = await fetch('/api/settings/translation', {
+    method: body ? 'PATCH' : 'GET',
+    headers: { authorization: `Bearer ${token}`, 'x-organization-id': ctx.organizationId, 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) throw new Error(t('translationError'));
+  return response.json();
+}
+
+function renderTranslationCard() {
+  return `<section class="admin-card">
+    <h2 class="admin-h2">${esc(t('translationTitle'))}</h2>
+    <p class="admin-help">${esc(t('translationHelp'))}</p>
+    <p id="translationStatus" role="status">${esc(t(translation?.available ? 'translationOn' : translation?.enabled === false ? 'translationOff' : 'translationMissing'))}</p>
+    <form id="translationForm">
+      <label><input id="translationEnabled" type="checkbox" ${translation?.enabled !== false ? 'checked' : ''}> ${esc(t('translationEnable'))}</label>
+      <label for="translationKey">${esc(t('translationKey'))}</label>
+      <input class="input" id="translationKey" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="translationHint">
+      <p id="translationHint" class="admin-help">${esc(t('translationKeyHint'))}</p>
+      <button class="btn btn-primary" id="translationSave" type="submit">${esc(t('save'))}</button>
+    </form>
+  </section>`;
 }
 
 /* ── Eventos ──────────────────────────────────────────── */
 
 function bind() {
+  $('#translationForm')?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = $('#translationSave'); button.disabled = true; button.textContent = t('saving');
+    try {
+      translation = await relaySettings({enabled: $('#translationEnabled').checked, apiKey: $('#translationKey').value});
+      $('#translationKey').value = '';
+      render(); toast(t('translationSaved'));
+    } catch { toast(t('translationError')); }
+    finally { button.disabled = false; button.textContent = t('save'); }
+  });
   const form = $('#inviteForm');
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -283,9 +323,9 @@ function bind() {
         // en el mismo instante en que aparecía.
         await refresh();
         showLink(email, url);
-        toast('Enlace creado. Cópialo y mándalo.');
+        toast(t('created'));
       } catch (err) {
-        toast(err.message || 'No se pudo crear la invitación');
+        toast(err.message || t('inviteError'));
       } finally {
         btn.disabled = false;
       }
@@ -298,11 +338,11 @@ function bind() {
       const input = $('#inviteLink');
       try {
         await navigator.clipboard.writeText(input.value);
-        toast('Enlace copiado');
+        toast(t('copied'));
       } catch (e) {
         input.select();
         document.execCommand('copy');
-        toast('Enlace copiado');
+        toast(t('copied'));
       }
     });
   }
@@ -312,10 +352,10 @@ function bind() {
     b.addEventListener('click', async () => {
       const email = b.dataset.copyInvite;
       const cached = getLink(email);
-      if (!cached) return toast('Ese enlace no está en este navegador. Genera uno nuevo.');
+      if (!cached) return toast(t('linkMissing'));
       try {
         await navigator.clipboard.writeText(cached.url);
-        toast('Enlace copiado');
+        toast(t('copied'));
       } catch (e) {
         const box = $('#inviteResult');
         if (box) { $('#inviteLink').value = cached.url; box.hidden = false; }
@@ -330,7 +370,7 @@ function bind() {
       try {
         await regenerate(b.dataset.regenInvite, b.dataset.regenRole);
       } catch (err) {
-        toast(err.message || 'No se pudo generar el enlace');
+        toast(err.message || t('linkError'));
         b.disabled = false;
       }
     });
@@ -347,9 +387,9 @@ function bind() {
         });
         ctx = await API.loadContext();
         await refresh();
-        toast('Rol actualizado');
+        toast(t('roleSaved'));
       } catch (err) {
-        toast(err.message || 'No se pudo cambiar el rol');
+        toast(err.message || t('roleError'));
         b.disabled = false;
       }
     });
@@ -359,7 +399,7 @@ function bind() {
     b.addEventListener('click', async () => {
       const row = b.closest('.admin-person');
       const who = row.querySelector('.admin-person-mail').textContent.trim();
-      if (!confirm(`¿Quitar a ${who} de la empresa?\n\nSus tareas asignadas quedarán sin asignar.`)) return;
+      if (!confirm(t('removeConfirm', {who}))) return;
       b.disabled = true;
       try {
         await API.rpc('task_remove_member', {
@@ -368,9 +408,9 @@ function bind() {
         });
         ctx = await API.loadContext();
         await refresh();
-        toast('Persona dada de baja');
+        toast(t('removed'));
       } catch (err) {
-        toast(err.message || 'No se pudo dar de baja');
+        toast(err.message || t('removeError'));
         b.disabled = false;
       }
     });
@@ -385,13 +425,19 @@ function bind() {
 
   const theme = $('#themeBtn');
   if (theme) {
-    theme.addEventListener('click', () => {
+    theme.onclick = () => {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = next;
       try { localStorage.setItem('minimal-board:theme', next); } catch (e) {}
-    });
+    };
   }
 }
+
+window.TasksI18n.select($('#adminLang'));
+$('#adminMain').textContent = t('loading');
+$('#adminHeading').textContent = t('team');
+$('#backToBoard').textContent = t('back');
+window.addEventListener('tasks-language-change', () => { $('#adminLang').value = window.TasksI18n.language(); if (ctx) render(); });
 
 // Tema guardado
 try {
@@ -401,7 +447,7 @@ try {
 
 if (!API || typeof API.enabled !== 'function' || !API.enabled()) {
   $('#adminMain').innerHTML = `<div class="admin-card admin-gate">
-    <h1>Sin backend</h1><p>Este despliegue no tiene backend configurado.</p></div>`;
+    <h1>${esc(t('noBackend'))}</h1><p>${esc(t('noBackendHint'))}</p></div>`;
 } else {
   boot();
 }

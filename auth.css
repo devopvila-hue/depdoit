@@ -6,3 +6,11 @@
 .shared-auth-card summary { cursor:pointer; margin:8px 0; }
 .shared-auth-card details .btn { margin-top:12px; width:100%; }
 .shared-auth-card small { color:#9aa4b8; }
+
+.shared-auth-card select { width:100%; padding:10px; border-radius:8px; background:#07090d; color:#eef2f8; border:1px solid #394355; }
+.admin-app .topbar { flex-wrap:wrap; }
+#adminLang { flex:0 0 auto; max-width:140px; }
+#translationForm { display:grid; gap:12px; }
+#translationForm input[type="password"] { width:100%; box-sizing:border-box; }
+#translationForm input[type="checkbox"] { width:auto; }
+@media (max-width:600px) { .admin-app .brand { flex:1 1 auto; } .admin-heading { order:4; flex:1 1 100%; } .admin-person { flex-wrap:wrap; } .admin-person-actions { max-width:100%; } }

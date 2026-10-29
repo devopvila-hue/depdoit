@@ -2,6 +2,8 @@
    Interfaz en español, inglés, rumano y húngaro. */
 
 const LANG_STORAGE_KEY = 'relay.lang';
+const accessText = (key, vars) => window.TasksI18n?.t(key, vars) || key;
+let translationPoll = null;
 
 /**
  * Ruta en la que vive Relay dentro de este origen.
@@ -278,7 +280,7 @@ function formatDate(value) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString({es:'es-ES',en:'en-GB',ro:'ro-RO',hu:'hu-HU'}[state.lang], { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 /** Texto de la incidencia en el idioma de la interfaz, si existe traducción. */
@@ -337,6 +339,15 @@ async function refreshProjectData() {
     state.activeSprintId = null;
   }
   render();
+  const pending = issues.some(issue => issue.translationsPending && !issue.translationsFailed);
+  const failed = issues.some(issue => issue.translationsFailed);
+  const notice = $('notice');
+  if (notice) {
+    notice.hidden = !pending && !failed && Boolean(state.meta?.translation.available);
+    notice.textContent = accessText(failed ? 'translationFailed' : pending ? 'translating' : 'translationMissing');
+  }
+  clearTimeout(translationPoll);
+  if (pending) translationPoll = setTimeout(() => refreshProjectData().catch(() => {}), 1600);
 }
 
 function filteredIssues() {
@@ -350,7 +361,7 @@ function filteredIssues() {
     return (
       issue.key.toLowerCase().includes(needle) ||
       text.toLowerCase().includes(needle) ||
-      (issue.description || '').toLowerCase().includes(needle)
+      (issue.translations?.[state.lang]?.description || issue.description || '').toLowerCase().includes(needle)
     );
   });
 }
@@ -696,9 +707,9 @@ function addDays(iso, days) {
 function shortDate(iso, bucket) {
   const date = new Date(`${iso}T00:00:00Z`);
   if (bucket >= 30) {
-    return date.toLocaleDateString('es-ES', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+    return date.toLocaleDateString({es:'es-ES',en:'en-GB',ro:'ro-RO',hu:'hu-HU'}[state.lang], { month: 'short', year: '2-digit', timeZone: 'UTC' });
   }
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+  return date.toLocaleDateString({es:'es-ES',en:'en-GB',ro:'ro-RO',hu:'hu-HU'}[state.lang], { day: '2-digit', month: 'short', timeZone: 'UTC' });
 }
 
 function renderGantt(root) {
@@ -919,6 +930,7 @@ async function openIssue(key) {
     return;
   }
 
+  root.dataset.issueKey = key;
   let issue;
   try {
     issue = await api(`/api/issues/${encodeURIComponent(key)}`);
@@ -943,7 +955,8 @@ async function openIssue(key) {
       <span class="drawer-key">${escapeHtml(issue.key)}</span>
       <button class="icon-btn" id="drawer-close">×</button>
     </div>
-    <h2 class="drawer-title">${escapeHtml(issue.summary)}</h2>
+    <h2 class="drawer-title">${escapeHtml(localized(issue).text)}</h2>
+    ${issue.translations?.[state.lang]?.description ? `<div id="translated-description" style="white-space:pre-wrap;margin-bottom:16px">${escapeHtml(issue.translations[state.lang].description)}</div>` : ''}
     <div class="row2">
       <div>
         <label>${escapeHtml(t('drawer.status'))}</label>
@@ -982,7 +995,7 @@ async function openIssue(key) {
     </select>
     <label>${escapeHtml(t('drawer.labels'))}</label>
     <input id="i-labels" value="${escapeHtml(issue.labels.join(', '))}" />
-    <label>${escapeHtml(t('drawer.description'))}</label>
+    <label>${escapeHtml(t('drawer.description'))} · ${escapeHtml(accessText('original'))} (${escapeHtml(langShort(issue.sourceLang))})</label>
     <textarea id="i-description">${escapeHtml(issue.description)}</textarea>
     <label>${escapeHtml(t('drawer.originalLang'))}</label>
     <select id="i-source-lang">${languageOptions(issue.sourceLang)}</select>
@@ -1062,7 +1075,7 @@ function bindTranslationActions(issue) {
         await refreshProjectData();
         openIssue(issue.key);
       } catch (error) {
-        flash(error.status === 503 ? t('tr.providerMissing') : error.message);
+        flash(error.status === 503 ? accessText('translationMissing') : error.message);
         button.disabled = false;
         button.textContent = t('tr.auto');
       }
@@ -1237,6 +1250,7 @@ function closeModal() {
 function setLang(lang) {
   if (!I18N[lang]) return;
   state.lang = lang;
+  if (window.TasksI18n?.language() !== lang) window.TasksI18n?.set(lang);
   document.documentElement.lang = lang;
   try {
     localStorage.setItem(LANG_STORAGE_KEY, lang);
@@ -1247,6 +1261,7 @@ function setLang(lang) {
   if (select) select.value = lang;
   applyStaticLabels();
   render();
+  if (!$('drawer').hidden && $('drawer-root').dataset.issueKey) openIssue($('drawer-root').dataset.issueKey);
 }
 
 function applyStaticLabels() {
@@ -1255,6 +1270,7 @@ function applyStaticLabels() {
   $('btn-new-project').textContent = t('action.newProject');
   $('btn-new-sprint').textContent = t('action.newSprint');
   $('btn-new-user').textContent = t('action.newMember');
+  $('lang-select').setAttribute('aria-label', accessText('language'));
   $('project-select').setAttribute('aria-label', t('project.label'));
   $('views-title').textContent = t('nav.views');
   $('sprints-title').textContent = t('nav.sprints');
@@ -1276,6 +1292,7 @@ function bindStaticEvents() {
   });
 
   $('lang-select').addEventListener('change', (event) => setLang(event.target.value));
+  window.addEventListener('tasks-language-change', event => { if (state.lang !== event.detail) setLang(event.detail); });
 
   $('search').addEventListener('input', (event) => {
     state.search = event.target.value;
@@ -1373,10 +1390,10 @@ async function init() {
     if (window.DepdoitAuth) { await window.DepdoitAuth.ensure(); window.DepdoitAuth.mount(); }
     state.meta = await api('/api/meta');
     const notice = $('notice');
-    if (notice) notice.hidden = true;
+    if (notice) { notice.hidden = Boolean(state.meta.translation.available); notice.textContent = accessText('translationMissing'); }
     await refreshProjects();
   } catch (error) {
-    $('view-root').innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p><a href="/admin">Equipo e invitaciones</a> · <button class="btn" onclick="location.reload()">Reintentar</button> · <button class="btn" onclick="window.DepdoitAPI?.signOut();location.reload()">Cambiar cuenta</button></div>`;
+    $('view-root').innerHTML = `<div class="empty"><p>${escapeHtml(error.message)}</p><a href="/admin">${escapeHtml(accessText('teamInvites'))}</a> · <button class="btn" onclick="location.reload()">${escapeHtml(accessText('retry'))}</button> · <button class="btn" onclick="window.DepdoitAPI?.signOut();location.reload()">${escapeHtml(accessText('changeAccount'))}</button></div>`;
   }
 }
 

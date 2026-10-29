@@ -65,3 +65,11 @@ Relay HTTP server.
 Rollback: restore the previous Vercel deployment. Supabase originals are untouched;
 the Relay data volume must be preserved. Back up SQLite with the SQLite backup API,
 not by copying a live `.db` without its WAL.
+
+### Idiomas y traducción de tareas
+
+- Español, English, Română y Magyar comparten la preferencia `relay.lang` entre Relay, login y `/admin`.
+- MiniMax traduce títulos y descripciones, incluidas tareas importadas, conservando el original. Las traducciones se guardan por empresa y se regeneran al editar el texto fuente.
+- El propietario gestiona la conexión en `/admin` → Traducción automática de tareas. Solo el propietario puede consultar o modificar `/api/settings/translation`; ninguna respuesta devuelve claves.
+- Conexión compartida del servidor: `LLM_API_KEY` o `RELAY_LLM_KEY_FILE`, `LLM_MODEL` y `LLM_BASE_URL`. Puede desactivarse o sustituirse con una clave por empresa; las claves de empresa permanecen en su SQLite privado, nunca en los assets ni en localStorage.
+- Los fallos conservan el original y se muestran en el tablero. Cada tarea permite reintentar o corregir una traducción manualmente.
