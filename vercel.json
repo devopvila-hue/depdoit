@@ -4,21 +4,80 @@
   "outputDirectory": "site",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://api.departify.app/tasks-relay/api/:path*" },
-    { "source": "/admin", "destination": "/admin.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.departify.app/tasks-relay/api/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    }
   ],
   "redirects": [
-    { "source": "/relay", "destination": "/", "permanent": false },
-    { "source": "/relay/:path*", "destination": "/:path*", "permanent": false }
+    {
+      "source": "/relay",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/relay/:path*",
+      "destination": "/:path*",
+      "permanent": false
+    }
   ],
   "headers": [
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-      { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-      { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
-    ] },
-    { "source": "/config.js", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
-    { "source": "/api/:path*", "headers": [{ "key": "Cache-Control", "value": "private, no-store" }] }
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/config.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://app.departify.app"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://app.departify.app"
+        }
+      ]
+    }
   ]
 }
