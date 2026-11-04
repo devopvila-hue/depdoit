@@ -18,6 +18,15 @@ const API_BASE = (() => {
   return path === '/' ? '' : path.replace(/\/+$/, '');
 })();
 
+/**
+ * Relay puede abrirse dentro del Portal (Operaciones). En ese caso el Portal
+ * ya tiene sesión y la entrega por postMessage; Relay no pinta su propio
+ * login ni su barra de acceso. El marcador es `?embedded=1`.
+ */
+const EMBEDDED = window.RelayEmbedded?.isEmbedded(location.search) ?? false;
+let embeddedOrganizationId = null;
+const embeddedBridge = { stop: null };
+
 const state = {
   lang: 'es',
   projects: [],
@@ -72,8 +81,8 @@ async function api(path, { method = 'GET', body } = {}) {
   const init = { method, headers: {} };
   const token = await getAuthToken();
   if (token) init.headers.authorization = `Bearer ${token}`;
-  const workspace = window.DepdoitAuth?.context();
-  if (workspace) init.headers['x-organization-id'] = workspace.organizationId;
+  const organizationId = embeddedOrganizationId || window.DepdoitAuth?.context()?.organizationId;
+  if (organizationId) init.headers['x-organization-id'] = organizationId;
   if (body !== undefined) {
     init.headers['content-type'] = 'application/json';
     init.body = JSON.stringify(body);
@@ -81,7 +90,11 @@ async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(API_BASE + path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && window.DepdoitAuth) {
+    if (res.status === 401 && EMBEDDED) {
+      // Dentro del Portal, un 401 significa que la sesión entregada ya no
+      // sirve: se pide otra al host en lugar de recargar en bucle.
+      window.RelayEmbedded?.requestSession(window.parent, window.RelayEmbedded?.parentOrigins()[0]);
+    } else if (res.status === 401 && window.DepdoitAuth) {
       window.DepdoitAPI.signOut(); location.reload();
     } else if (res.status === 401 && !path.includes('/api/meta')) askToken();
     const error = new Error(data.error || `Error ${res.status}`);
@@ -1368,6 +1381,30 @@ function bindStaticEvents() {
   });
 }
 
+/**
+ * Modo embebido (Portal · Operaciones).
+ *
+ * Oculta el chrome que duplicaría el del Portal (acceso, alta de miembros) y
+ * espera la sesión que el host entrega por postMessage. Sin sesión no se
+ * inventa nada: se muestra el mismo aviso de error que cualquier fallo real.
+ */
+async function connectEmbedded() {
+  document.documentElement.dataset.embedded = '1';
+  for (const id of ['workspace-access', 'btn-new-user']) {
+    const node = $(id);
+    if (node) node.hidden = true;
+  }
+  const initial = window.RelayEmbedded?.readLocale(location.search);
+  if (initial && I18N[initial]) setLang(initial);
+  if (!window.RelayEmbedded) throw new Error(t('auth.title'));
+  const bridge = window.RelayEmbedded.install({
+    onLocale: (locale) => { if (I18N[locale] && locale !== state.lang) setLang(locale); },
+  });
+  embeddedBridge.stop = bridge.stop;
+  const session = await bridge.ready;
+  embeddedOrganizationId = session.organizationId;
+}
+
 async function init() {
   bindStaticEvents();
 
@@ -1387,7 +1424,13 @@ async function init() {
 
   try {
     await loadConfig();
-    if (window.DepdoitAuth) { await window.DepdoitAuth.ensure(); window.DepdoitAuth.mount(); }
+    if (EMBEDDED) {
+      // Dentro del Portal no hay login propio: la sesión llega del host.
+      await connectEmbedded();
+    } else if (window.DepdoitAuth) {
+      await window.DepdoitAuth.ensure();
+      window.DepdoitAuth.mount();
+    }
     state.meta = await api('/api/meta');
     const notice = $('notice');
     if (notice) { notice.hidden = Boolean(state.meta.translation.available); notice.textContent = accessText('translationMissing'); }

@@ -515,3 +515,16 @@ label { display: block; font-size: 12px; color: var(--ink-2); margin: 13px 0 5px
 .shared-auth-card details .btn { margin-top:12px; width:100%; }
 .shared-auth-card small { color:#9aa4b8; }
 @media(max-width:600px) { .topbar { flex-wrap:wrap; gap:8px; padding:10px; } .project-switch { flex:1; min-width:0; } .project-switch select { min-width:0; width:100%; } .search { order:5; max-width:none; flex-basis:100%; } .workspace-access { padding:8px; } .workspace-access .btn { font-size:12px; } }
+
+
+/* Modo embebido (Portal · Operaciones): el chrome propio del Portal ya
+   aporta marca, navegación y sesión. Relay solo pinta el trabajo. */
+html[data-embedded='1'] .topbar .brand,
+html[data-embedded='1'] #workspace-access,
+html[data-embedded='1'] #btn-new-user {
+  display: none !important;
+}
+
+html[data-embedded='1'] .app {
+  padding-top: 0;
+}
